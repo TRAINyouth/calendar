@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRAIN Delivery Calendar</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;600;700&family=Barlow+Condensed:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e1117;
+    --surface: #161b25;
+    --border: #1e2535;
+    --accent: #49a49d;
+    --accent2: #49a49d;
+    --text: #e8eaf0;
+    --muted: #6b7590;
+    --today-bg: #0f2422;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 48px;
+    background: var(--surface);
+    border-bottom: 2px solid var(--accent);
+    flex-shrink: 0;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+  }
+
+  .org-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  .calendar-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .header-right {
+    text-align: right;
+  }
+
+  #clock {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 2.8rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    line-height: 1;
+  }
+
+  #date-display {
+    font-size: 0.95rem;
+    color: var(--muted);
+    margin-top: 2px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* SCROLL AREA */
+  #scroll-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 48px 48px;
+    scroll-behavior: smooth;
+  }
+
+  #scroll-container::-webkit-scrollbar { display: none; }
+
+  /* EVENTS */
+  .day-block {
+    margin-top: 20px;
+  }
+
+  .day-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .day-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .day-date {
+    font-size: 1rem;
+    color: #b0b8cc;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .today-badge {
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 2px;
+  }
+
+  .event-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 7px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent2);
+    border-radius: 3px;
+    margin-bottom: 5px;
+  }
+
+  .event-card.is-today {
+    background: var(--today-bg);
+    border-left-color: var(--accent);
+  }
+
+  .event-time {
+    min-width: 110px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  .event-time.all-day {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .event-body {
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .event-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* STATUS MESSAGES */
+  .status-msg {
+    text-align: center;
+    padding: 80px 40px;
+    color: var(--muted);
+    font-size: 1.2rem;
+  }
+
+  .no-events {
+    padding: 16px 24px;
+    color: var(--muted);
+    font-size: 0.95rem;
+    font-style: italic;
+  }
+
+  /* REFRESH INDICATOR */
+  #refresh-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: var(--accent);
+    width: 100%;
+    transform-origin: left;
+    animation: shrink 600s linear forwards;
+  }
+
+  @keyframes shrink {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0); }
+  }
+
+  #status-line {
+    position: fixed;
+    bottom: 6px;
+    right: 16px;
+    font-size: 0.7rem;
+    color: var(--border);
+    letter-spacing: 0.05em;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <div class="header-left">
+      <span class="org-name">TRAIN</span>
+      <span class="calendar-name">Delivery Schedule</span>
+    </div>
+    <div class="header-right">
+      <div id="clock">00:00</div>
+      <div id="date-display">Loading...</div>
+    </div>
+  </header>
+
+  <div id="scroll-container">
+    <div id="events-list"><div class="status-msg">Loading calendar...</div></div>
+  </div>
+</div>
+
+<div id="refresh-bar"></div>
+<div id="status-line">Refreshes every 10 min</div>
+
+<script>
+  const ICS_URL = 'https://rough-frog-49ab.muddy-dawn-5ac5.workers.dev/';
+  const DAYS_AHEAD = 28;
+  const REFRESH_MS = 10 * 60 * 1000;
+
+  const scrollEl = document.getElementById('scroll-container');
+
+  // Clock
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent =
+      now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('date-display').textContent =
+      now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // Remote/keyboard scrolling
+  document.addEventListener('keydown', e => {
+    const amount = 200;
+    if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+      scrollEl.scrollBy({ top: amount, behavior: 'smooth' });
+      e.preventDefault();
+    }
+    if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+      scrollEl.scrollBy({ top: -amount, behavior: 'smooth' });
+      e.preventDefault();
+    }
+    if (e.key === 'Home') {
+      scrollEl.scrollTo({ top: 0, behavior: 'smooth' });
+      e.preventDefault();
+    }
+  });
+
+  // ── ICS parser with recurring event support ──────────────────
+
+  function parseICSDate(str) {
+    str = (str || '').trim();
+    if (/^\d{8}$/.test(str)) {
+      return { date: new Date(+str.substr(0,4), +str.substr(4,2)-1, +str.substr(6,2)), allDay: true };
+    }
+    if (/^\d{8}T\d{6}Z$/.test(str)) {
+      return { date: new Date(Date.UTC(+str.substr(0,4),+str.substr(4,2)-1,+str.substr(6,2),+str.substr(9,2),+str.substr(11,2),+str.substr(13,2))), allDay: false };
+    }
+    if (/^\d{8}T\d{6}$/.test(str)) {
+      return { date: new Date(+str.substr(0,4),+str.substr(4,2)-1,+str.substr(6,2),+str.substr(9,2),+str.substr(11,2),+str.substr(13,2)), allDay: false };
+    }
+    return null;
+  }
+
+  function addDays(d, n) {
+    const r = new Date(d); r.setDate(r.getDate() + n); return r;
+  }
+
+  function sameDay(a, b) {
+    return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+  }
+
+  const DAY_MAP = { SU:0, MO:1, TU:2, WE:3, TH:4, FR:5, SA:6 };
+
+  function expandRecurring(ev, rangeStart, rangeEnd) {
+    const { rrule, start, end } = ev;
+    if (!rrule || !start) return [];
+
+    const duration = (end && end.date && start.date) ? (end.date - start.date) : 0;
+    const results = [];
+
+    // Parse RRULE parts
+    const parts = {};
+    rrule.split(';').forEach(p => {
+      const [k,v] = p.split('=');
+      parts[k] = v;
+    });
+
+    const freq = parts.FREQ;
+    const interval = parseInt(parts.INTERVAL || '1');
+    const until = parts.UNTIL ? parseICSDate(parts.UNTIL) : null;
+    const count = parts.COUNT ? parseInt(parts.COUNT) : null;
+    const byDay = parts.BYDAY ? parts.BYDAY.split(',') : null;
+
+    let current = new Date(start.date);
+    let occurrences = 0;
+    const maxDate = until ? until.date : rangeEnd;
+    const hardLimit = 500; // safety
+
+    while (current <= maxDate && occurrences < hardLimit) {
+      if (count !== null && occurrences >= count) break;
+
+      const inRange = current >= rangeStart && current <= rangeEnd;
+
+      if (freq === 'WEEKLY' && byDay) {
+        // For weekly with BYDAY, iterate each day of the current week
+        const weekStart = new Date(current);
+        for (const day of byDay) {
+          const targetDay = DAY_MAP[day.replace(/[^A-Z]/g,'')];
+          if (targetDay === undefined) continue;
+          const diff = (targetDay - weekStart.getDay() + 7) % 7;
+          const occurrence = new Date(weekStart);
+          occurrence.setDate(occurrence.getDate() + diff);
+          if (occurrence >= rangeStart && occurrence <= rangeEnd && occurrence >= start.date) {
+            const endDate = duration ? new Date(occurrence.getTime() + duration) : null;
+            results.push({
+              ...ev,
+              start: { date: new Date(occurrence), allDay: start.allDay },
+              end: endDate ? { date: endDate, allDay: start.allDay } : null
+            });
+            occurrences++;
+          }
+        }
+        current = addDays(current, 7 * interval);
+      } else if (freq === 'DAILY') {
+        if (inRange) {
+          const endDate = duration ? new Date(current.getTime() + duration) : null;
+          results.push({
+            ...ev,
+            start: { date: new Date(current), allDay: start.allDay },
+            end: endDate ? { date: endDate, allDay: start.allDay } : null
+          });
+          occurrences++;
+        }
+        current = addDays(current, interval);
+      } else if (freq === 'WEEKLY') {
+        if (inRange) {
+          const endDate = duration ? new Date(current.getTime() + duration) : null;
+          results.push({
+            ...ev,
+            start: { date: new Date(current), allDay: start.allDay },
+            end: endDate ? { date: endDate, allDay: start.allDay } : null
+          });
+          occurrences++;
+        }
+        current = addDays(current, 7 * interval);
+      } else if (freq === 'MONTHLY') {
+        if (inRange) {
+          const endDate = duration ? new Date(current.getTime() + duration) : null;
+          results.push({
+            ...ev,
+            start: { date: new Date(current), allDay: start.allDay },
+            end: endDate ? { date: endDate, allDay: start.allDay } : null
+          });
+          occurrences++;
+        }
+        current = new Date(current);
+        current.setMonth(current.getMonth() + interval);
+      } else {
+        // Unknown freq — just use start date once
+        if (inRange) results.push(ev);
+        break;
+      }
+    }
+
+    return results;
+  }
+
+  function parseICS(text) {
+    text = text.replace(/\r\n[ \t]/g, '').replace(/\r\n/g, '\n').replace(/\n[ \t]/g, '');
+    const lines = text.split('\n');
+
+    const decode = s => s
+      .replace(/\\n/gi, '\n').replace(/\\,/g, ',')
+      .replace(/\\;/g, ';').replace(/\\\\/g, '\\')
+      .replace(/<[^>]+>/g, '').trim();
+
+    const rawEvents = [];
+    let inEvent = false;
+    let cur = {};
+
+    for (const line of lines) {
+      if (line.startsWith('BEGIN:VEVENT')) { inEvent = true; cur = {}; continue; }
+      if (line.startsWith('END:VEVENT')) {
+        inEvent = false;
+        if (cur.summary) rawEvents.push(cur);
+        continue;
+      }
+      if (!inEvent) continue;
+      const colonIdx = line.indexOf(':');
+      if (colonIdx === -1) continue;
+      const keyFull = line.substring(0, colonIdx);
+      const key = keyFull.split(';')[0].toUpperCase();
+      const val = line.substring(colonIdx + 1);
+
+      if (key === 'SUMMARY') cur.summary = decode(val);
+      else if (key === 'DESCRIPTION') cur.description = decode(val);
+      else if (key === 'LOCATION') cur.location = decode(val);
+      else if (key === 'RRULE') cur.rrule = val.trim();
+      else if (key === 'DTSTART') cur.start = parseICSDate(val.trim());
+      else if (key === 'DTEND') cur.end = parseICSDate(val.trim());
+      else if (key === 'EXDATE') {
+        if (!cur.exdates) cur.exdates = [];
+        val.split(',').forEach(d => {
+          const parsed = parseICSDate(d.trim());
+          if (parsed) cur.exdates.push(parsed.date.toDateString());
+        });
+      }
+    }
+
+    // Expand events over the next DAYS_AHEAD days
+    const today = new Date(); today.setHours(0,0,0,0);
+    const rangeEnd = addDays(today, DAYS_AHEAD);
+    const expanded = [];
+
+    for (const ev of rawEvents) {
+      if (ev.rrule) {
+        const instances = expandRecurring(ev, today, rangeEnd);
+        for (const inst of instances) {
+          // Skip excluded dates
+          if (ev.exdates && ev.exdates.includes(inst.start.date.toDateString())) continue;
+          expanded.push(inst);
+        }
+      } else if (ev.start) {
+        const d = new Date(ev.start.date); d.setHours(0,0,0,0);
+        if (d >= today && d <= rangeEnd) expanded.push(ev);
+      }
+    }
+
+    return expanded;
+  }
+
+  // ── Rendering ─────────────────────────────────────────────────
+
+  function formatTime(start, end) {
+    if (!start || start.allDay) return null;
+    const fmt = d => {
+      let h = d.getHours();
+      const m = d.getMinutes();
+      const ampm = h >= 12 ? 'pm' : 'am';
+      h = h % 12 || 12;
+      return m === 0 ? `${h}${ampm}` : `${h}.${String(m).padStart(2,'0')}${ampm}`;
+    };
+    const startStr = fmt(start.date);
+    if (end && !end.allDay) {
+      return `${startStr}–${fmt(end.date)}`;
+    }
+    return startStr;
+  }
+
+  function dateKey(d) {
+    return `${d.getFullYear()}-${String(d.getMonth()).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function escapeHtml(str) {
+    return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function renderEvents(events) {
+    const container = document.getElementById('events-list');
+    const today = new Date(); today.setHours(0,0,0,0);
+
+    events.sort((a,b) => a.start.date - b.start.date);
+
+    if (events.length === 0) {
+      container.innerHTML = `<div class="status-msg">No upcoming events in the next ${DAYS_AHEAD} days.</div>`;
+      return;
+    }
+
+    const grouped = {};
+    const dayOrder = [];
+    for (const ev of events) {
+      const k = dateKey(ev.start.date);
+      if (!grouped[k]) { grouped[k] = { date: new Date(ev.start.date), events: [] }; dayOrder.push(k); }
+      grouped[k].events.push(ev);
+    }
+
+    let html = '';
+    for (const k of dayOrder) {
+      const { date, events: dayEvents } = grouped[k];
+      const isToday = sameDay(date, today);
+      const dayName = isToday ? 'Today' : date.toLocaleDateString('en-GB', { weekday: 'long' });
+      const dateStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+
+      html += `<div class="day-block">
+        <div class="day-header">
+          <span class="day-label">${dayName}</span>
+          <span class="day-date">${dateStr}</span>
+          ${isToday ? '<span class="today-badge">Today</span>' : ''}
+        </div>`;
+
+      for (const ev of dayEvents) {
+        const timeStr = formatTime(ev.start, ev.end);
+
+        html += `<div class="event-card ${isToday ? 'is-today' : ''}">
+          <div class="event-time ${!timeStr ? 'all-day' : ''}">${timeStr || 'All day'}</div>
+          <div class="event-body">
+            <div class="event-title">${escapeHtml(ev.summary)}</div>
+          </div>
+        </div>`;
+      }
+      html += '</div>';
+    }
+
+    container.innerHTML = html;
+  }
+
+  async function loadCalendar() {
+    const container = document.getElementById('events-list');
+    try {
+      const resp = await fetch(ICS_URL, { cache: 'no-store' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const text = await resp.text();
+      const events = parseICS(text);
+      renderEvents(events);
+      document.getElementById('status-line').textContent =
+        'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      const bar = document.getElementById('refresh-bar');
+      bar.style.animation = 'none';
+      bar.offsetHeight;
+      bar.style.animation = `shrink ${REFRESH_MS/1000}s linear forwards`;
+    } catch (err) {
+      container.innerHTML = `<div class="status-msg">⚠ Could not load calendar.<br><small style="font-size:0.8rem;opacity:0.5">${err.message}</small></div>`;
+      console.error(err);
+    }
+  }
+
+  loadCalendar();
+  setInterval(loadCalendar, REFRESH_MS);
+</script>
+</body>
+</html>
