@@ -434,10 +434,12 @@
       const key = keyFull.split(';')[0].toUpperCase();
       const val = line.substring(colonIdx + 1);
 
-      if (key === 'SUMMARY') cur.summary = decode(val);
+if (key === 'SUMMARY') cur.summary = decode(val);
       else if (key === 'DESCRIPTION') cur.description = decode(val);
       else if (key === 'LOCATION') cur.location = decode(val);
       else if (key === 'RRULE') cur.rrule = val.trim();
+      else if (key === 'UID') cur.uid = val.trim();
+      else if (key === 'RECURRENCE-ID') cur.recurrenceId = parseICSDate(val.trim());
       else if (key === 'DTSTART') cur.start = parseICSDate(val.trim());
       else if (key === 'DTEND') cur.end = parseICSDate(val.trim());
       else if (key === 'EXDATE') {
@@ -449,17 +451,30 @@
       }
     }
 
-    // Expand events over the next DAYS_AHEAD days
+ // Expand events over the next DAYS_AHEAD days
     const today = new Date(); today.setHours(0,0,0,0);
     const rangeEnd = addDays(today, DAYS_AHEAD);
     const expanded = [];
 
+    // Outlook publishes an edited single occurrence as its own VEVENT sharing
+    // the master's UID plus a RECURRENCE-ID. Build a map so we can skip the
+    // original series occurrence on that date and avoid showing both.
+    const overridesByUid = {};
     for (const ev of rawEvents) {
-      if (ev.rrule) {
+      if (ev.uid && ev.recurrenceId) {
+        if (!overridesByUid[ev.uid]) overridesByUid[ev.uid] = new Set();
+        overridesByUid[ev.uid].add(ev.recurrenceId.date.toDateString());
+      }
+    }
+
+    for (const ev of rawEvents) {
+      if (ev.rrule && !ev.recurrenceId) {
         const instances = expandRecurring(ev, today, rangeEnd);
+        const overrideDates = (ev.uid && overridesByUid[ev.uid]) || new Set();
         for (const inst of instances) {
-          // Skip excluded dates
-          if (ev.exdates && ev.exdates.includes(inst.start.date.toDateString())) continue;
+          const dStr = inst.start.date.toDateString();
+          if (ev.exdates && ev.exdates.includes(dStr)) continue;
+          if (overrideDates.has(dStr)) continue;
           expanded.push(inst);
         }
       } else if (ev.start) {
